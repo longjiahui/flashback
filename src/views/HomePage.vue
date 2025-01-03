@@ -1,56 +1,113 @@
 <template>
-  <ion-page>
-    <ion-header :translucent="true">
-      <ion-toolbar>
-        <ion-title>Blank</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Blank</ion-title>
-        </ion-toolbar>
-      </ion-header>
-
-      <div id="container">
-        <strong>Ready to create an app?</strong>
-        <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-      </div>
-    </ion-content>
-  </ion-page>
+    <div class="size-full flex flex-col">
+        <IonHeader :translucent="true">
+            <IonToolbar>
+                <IonTitle>Flashback Sets</IonTitle>
+                <IonButtons collapse slot="end">
+                    <IonButton><IonIcon :icon="add"></IonIcon></IonButton>
+                </IonButtons>
+            </IonToolbar>
+        </IonHeader>
+        <IonContent fullscreen>
+            <IonHeader collapse="condense">
+                <IonToolbar>
+                    <IonTitle size="large">Flashback Sets</IonTitle>
+                    <IonButtons collapse slot="end">
+                        <IonButton size="large"
+                            ><IonIcon :icon="add"></IonIcon
+                        ></IonButton>
+                    </IonButtons>
+                </IonToolbar>
+            </IonHeader>
+            <IonList>
+                <IonItemSliding
+                    v-for="(d, i) in new Array(100).fill(0)"
+                    :key="i"
+                >
+                    <IonItem
+                        button
+                        @click="editFlashbackSetDialog.show({})"
+                        :detail="false"
+                    >
+                        <IonLabel>hello</IonLabel>
+                    </IonItem>
+                    <IonItemOptions color="danger"
+                        ><IonItemOption color="danger">Delete</IonItemOption>
+                    </IonItemOptions>
+                </IonItemSliding>
+            </IonList>
+        </IonContent>
+    </div>
+    <Dialog :dialog="editFlashbackSetDialog">
+        <IonHeader>
+            <IonToolbar>
+                <IonTitle>Edit Flashback Set</IonTitle>
+                <IonButtons
+                    @click="editFlashbackSetDialog.close()"
+                    slot="start"
+                >
+                    <IonButton>Close</IonButton>
+                </IonButtons>
+                <IonButtons slot="end">
+                    <IonButton @click="editFlashbackSetDialog.finish()"
+                        >Save</IonButton
+                    >
+                </IonButtons>
+            </IonToolbar>
+        </IonHeader>
+        <IonContent fullscreen>
+            <IonList inset>
+                <IonItem>
+                    <IonInput
+                        label="Set Name"
+                        v-model="editFlashbackSetDialog.data.name"
+                    ></IonInput>
+                </IonItem>
+            </IonList>
+            <IonList inset>
+                <IonListHeader>
+                    <IonLabel>hello</IonLabel>
+                    <IonButton>
+                        <IonIcon :icon="add"></IonIcon>
+                    </IonButton>
+                </IonListHeader>
+                <IonItemSliding>
+                    <IonItem>
+                        <IonInput></IonInput>
+                    </IonItem>
+                    <IonItemOptions>
+                        <IonItemOption color="danger">Delete</IonItemOption>
+                    </IonItemOptions>
+                </IonItemSliding>
+            </IonList>
+        </IonContent>
+    </Dialog>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import Dialog from '@/components/Dialog.vue'
+import { Flashback } from '@/models/flashback'
+import { useDialog } from '@/util/dialog'
+import {
+    IonLabel,
+    IonList,
+    IonItem,
+    IonItemSliding,
+    IonButton,
+    IonItemOptions,
+    IonItemOption,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonButtons,
+    IonContent,
+    IonIcon,
+    IonInput,
+    IonListHeader,
+} from '@ionic/vue'
+import { add } from 'ionicons/icons'
+
+const editFlashbackSetDialog = useDialog<Partial<Flashback>, any>({})
 </script>
 
-<style scoped>
-#container {
-  text-align: center;
-  
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
-}
-
-#container p {
-  font-size: 16px;
-  line-height: 22px;
-  
-  color: #8c8c8c;
-  
-  margin: 0;
-}
-
-#container a {
-  text-decoration: none;
-}
-</style>
+<style scoped lang="scss"></style>

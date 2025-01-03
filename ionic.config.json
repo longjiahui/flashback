@@ -1,7 +1,7 @@
 {
-  "name": "client",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "vue-vite"
+    "name": "flashback",
+    "integrations": {
+        "capacitor": {}
+    },
+    "type": "vue-vite"
 }

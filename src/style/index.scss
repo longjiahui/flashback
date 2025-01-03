@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.stretch {
+    @apply flex-1 min-w-0 min-h-0;
+}
