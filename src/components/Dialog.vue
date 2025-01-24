@@ -5,7 +5,7 @@ defineProps<{ dialog: AnyDialogType }>()
 </script>
 
 <template>
-    <IonModal :is-open="dialog.visible">
+    <IonModal :is-open="dialog.visible" @ionModalWillDismiss="dialog.close">
         <slot></slot>
     </IonModal>
 </template>
