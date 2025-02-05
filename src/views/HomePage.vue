@@ -76,10 +76,16 @@
                             >
                                 <div class="flex flex-col stretch">
                                     <IonLabel>{{ t.name }}</IonLabel>
-                                    <IonNote>hello world</IonNote>
                                 </div>
                                 <div>
-                                    <IonToggle @click.stop> </IonToggle>
+                                    <IonToggle
+                                        @click.stop
+                                        :model-value="!t.disabled"
+                                        @update:model-value="
+                                            (val) => (t.disabled = !val)
+                                        "
+                                    >
+                                    </IonToggle>
                                 </div>
                             </IonItem>
                             <IonItemOptions>
@@ -275,10 +281,120 @@
                 <IonList inset>
                     <IonListHeader>
                         <IonLabel>Timer rules</IonLabel>
-                        <IonButton>
+                        <IonButton
+                            @click="
+                                editTimerRuleDialog
+                                    .show({
+                                        timerId: editTimerDialog.data.id!,
+                                        rule: {
+                                            id: uuid(),
+                                            type: 'perMin',
+                                            value: minGap,
+                                            disabled: false,
+                                        },
+                                    })
+                                    .finishPromise((r) => {
+                                        if (r) {
+                                            if (!editTimerDialog.data.rules) {
+                                                editTimerDialog.data.rules = []
+                                            }
+                                            editTimerDialog.data.rules.push(r)
+                                        }
+                                    })
+                            "
+                        >
                             <IonIcon :icon="add"></IonIcon>
                         </IonButton>
                     </IonListHeader>
+                    <IonItemSliding
+                        v-for="(r, i) in editTimerDialog.data.rules"
+                        :key="r.id"
+                    >
+                        <IonItemOptions
+                            @ion-swipe="
+                                editTimerDialog.data.rules?.splice(i, 1)
+                            "
+                        >
+                            <IonItemOption
+                                color="danger"
+                                @click="
+                                    editTimerDialog.data.rules?.splice(i, 1)
+                                "
+                                >Delete</IonItemOption
+                            >
+                        </IonItemOptions>
+                        <IonItem>
+                            <div
+                                @click="
+                                    editTimerRuleDialog
+                                        .show({
+                                            timerId: editTimerDialog.data.id!,
+                                            rule: extend(true, {}, r),
+                                        })
+                                        .finishPromise((r) => {
+                                            if (r) {
+                                                editTimerDialog.data.rules![i] =
+                                                    r
+                                            }
+                                        })
+                                "
+                                class="stretch"
+                            >
+                                every
+                                {{ Math.max(minGap, r.value) }}
+                                minutes
+                            </div>
+                            <div>
+                                <IonToggle
+                                    @click.stop
+                                    :model-value="!r.disabled"
+                                    @update:model-value="
+                                        (val) => (r.disabled = !val)
+                                    "
+                                ></IonToggle>
+                            </div>
+                        </IonItem>
+                    </IonItemSliding>
+                </IonList>
+            </IonContent>
+        </Dialog>
+        <Dialog :dialog="editTimerRuleDialog">
+            <IonHeader>
+                <IonToolbar>
+                    <IonTitle>Edit Timer Rule</IonTitle>
+                    <IonButtons
+                        @click="editTimerRuleDialog.close()"
+                        slot="start"
+                    >
+                        <IonButton>Close</IonButton>
+                    </IonButtons>
+                    <IonButtons slot="end">
+                        <IonButton
+                            @click="
+                                () => {
+                                    editTimerRuleDialog.finish(
+                                        editTimerRuleDialog.data!.rule
+                                    )
+                                }
+                            "
+                        >
+                            Save
+                        </IonButton>
+                    </IonButtons>
+                </IonToolbar>
+            </IonHeader>
+            <IonContent fullscreen>
+                <IonList inset>
+                    <IonItem>
+                        <IonInput
+                            label="every"
+                            type="number"
+                            class="text-right"
+                            :model-value="Math.max(editTimerRuleDialog.data!.rule.value, minGap)"
+                            @update:model-value="val=>editTimerRuleDialog.data!.rule.value = Math.max(+val, minGap)"
+                        ></IonInput>
+                        <IonLabel slot="end" class="pl-2">Minutes</IonLabel>
+                    </IonItem>
                 </IonList>
             </IonContent>
         </Dialog>
@@ -312,13 +428,13 @@ import {
     IonTabBar,
     IonTabButton,
     IonToggle,
-    IonNote,
     IonSelect,
     IonSelectOption,
 } from '@ionic/vue'
 import extend from 'extend'
 import { add } from 'ionicons/icons'
 import { v4 as uuid } from 'uuid'
+import { watch } from 'vue'
 
 const editSetDialog = useDialog<Partial<Set>, any>({})
 
@@ -334,21 +450,116 @@ const editTimerDialog = useDialog<Partial<Timer>>({})
 function handleCreateTimer() {
     editTimerDialog.show({ id: uuid() })
 }
+const editTimerRuleDialog = useDialog<
+    | {
+          timerId: string
+          rule: Timer['rules'][number]
+      }
+    | undefined,
+    Timer['rules'][number]
+>()
 
-LocalNotifications.requestPermissions().then((permission) => {
+const minGap = 30
+
+async function refreshNotification() {
+    const permission = await LocalNotifications.requestPermissions()
     if (permission.display === 'granted') {
-        return LocalNotifications.schedule({
-            notifications: [
-                {
-                    id: 1,
-                    title: 'Notification Title',
-                    body: 'This is the notification body',
-                    schedule: { at: new Date(Date.now() + 1000 * 5) }, // Schedule for 5 seconds later
-                },
-            ],
-        })
+        await Promise.all(
+            new Array(24 * 60).fill(0).map((_, i) =>
+                LocalNotifications.cancel({
+                    notifications: [{ id: i }],
+                })
+            )
+        )
+        await LocalNotifications.removeAllDeliveredNotifications()
+        const validTimers = timers.value.filter(
+            (t) => !t.disabled && t.rules.filter((r) => !r.disabled).length > 0
+        )
+        await Promise.all(
+            validTimers.map(async (t) => {
+                const validRules = t.rules.filter((r) => !r.disabled)
+                await Promise.all(
+                    validRules.map(async (r) => {
+                        const contents = t.sets
+                            .map((sid) => sets.value.find((s) => s.id === sid))
+                            .filter((s) => !!s)
+                            .flatMap((s) =>
+                                s.contents?.map((c) => ({
+                                    content: c,
+                                    title: s.name,
+                                    setId: s.id,
+                                }))
+                            )
+                        const gap = Math.max(minGap, +r.value || minGap)
+                        const count = Math.floor((24 * 60) / gap)
+                        await Promise.all(
+                            new Array(count)
+                                .fill(0)
+                                .map((_, i) => {
+                                    return new Date(
+                                        Date.now() -
+                                            (Date.now() % 86400000) +
+                                            gap * 60 * (i + 1) * 1000
+                                    )
+                                })
+                                .map(async (d, i) => {
+                                    const c = contents[i % contents.length]
+                                    await LocalNotifications.schedule({
+                                        notifications: [
+                                            {
+                                                id: i,
+                                                body: c!.content.content,
+                                                title: c!.title,
+                                                schedule: {
+                                                    at:
+                                                        d.getTime() > Date.now()
+                                                            ? d
+                                                            : new Date(
+                                                                  d.getTime() +
+                                                                      86400000
+                                                              ),
+                                                    repeats: true,
+                                                },
+                                            },
+                                        ],
+                                    })
+                                })
+                        )
+                        // await LocalNotifications.schedule({
+                        //     notifications: contents.map((c, i) => {
+                        //         return {
+                        //             id: i,
+                        //             body: c!.content.content,
+                        //             title: c!.title,
+                        //             schedule: {
+                        //                 every: 'minute',
+                        //                 on: {
+                        //                     minute:
+                        //                 }
+                        //                 count:
+                        //                     ((+r.value || 3) * (i + 1)) /
+                        //                     contents.length,
+                        //             },
+                        //         }
+                        //     }),
+                        // })
+                    })
+                )
+            })
+        )
     }
-})
+}
+
+watch(
+    timers,
+    () => {
+        console.time('refresh notification')
+        refreshNotification().finally(() => {
+            console.timeEnd('refresh notification')
+        })
+    },
+    { deep: true }
+)
 </script>
 
 <style scoped lang="scss"></style>
